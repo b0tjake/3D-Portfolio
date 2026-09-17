@@ -380,6 +380,33 @@ export default function PortfolioContent() {
     };
   }, []);
 
+  // UNSTOPPABLE SMOOTH GSAP SCROLL TO HERO (Reopens Hero Section / 3D Model)
+  const isScrollingToHeroRef = useRef(false);
+
+  const scrollToHero = useCallback(() => {
+    if (isScrollingToHeroRef.current || isFlippingRef.current) return;
+    isScrollingToHeroRef.current = true;
+
+    const currentY = window.scrollY || document.documentElement.scrollTop || 0;
+    const scrollObj = { y: currentY };
+
+    gsap.killTweensOf(scrollObj);
+    gsap.to(scrollObj, {
+      y: 0,
+      duration: 1.15,
+      ease: "power2.inOut",
+      onUpdate: () => {
+        window.scrollTo(0, scrollObj.y);
+      },
+      onComplete: () => {
+        window.scrollTo(0, 0);
+        setTimeout(() => {
+          isScrollingToHeroRef.current = false;
+        }, 200);
+      },
+    });
+  }, []);
+
   // UNSTOPPABLE FULL-PAGE FLIP ANIMATIONS (Once it begins, it completes 100%)
   const flipToPage1 = useCallback(() => {
     if (isFlippingRef.current || pageRef.current === 1) return;
@@ -512,6 +539,9 @@ export default function PortfolioContent() {
         if (e.deltaY > 20) {
           e.preventDefault();
           flipToPage2();
+        } else if (e.deltaY < -20) {
+          e.preventDefault();
+          scrollToHero();
         }
       } else if (pageRef.current === 2) {
         if (e.deltaY < -20) {
@@ -533,7 +563,7 @@ export default function PortfolioContent() {
 
     window.addEventListener("wheel", handleWheel, { passive: false });
     return () => window.removeEventListener("wheel", handleWheel);
-  }, [activeSpaceRealm, flipToPage1, flipToPage2, flipToPage3]);
+  }, [activeSpaceRealm, flipToPage1, flipToPage2, flipToPage3, scrollToHero]);
 
   // TOUCH SWIPE GESTURES FOR MOBILE / TABLETS
   useEffect(() => {
@@ -559,18 +589,27 @@ export default function PortfolioContent() {
       const deltaY = touchStartY - touchEndY;
       const deltaX = touchStartX - touchEndX;
 
-      // Ensure vertical gesture with intentional distance (> 45px) and predominantly vertical
-      if (Math.abs(deltaY) > 45 && Math.abs(deltaY) > Math.abs(deltaX) * 1.3) {
-        if (pageRef.current === 1 && deltaY > 45) {
-          flipToPage2();
+      // Ensure vertical gesture with intentional distance (> 35px) and predominantly vertical
+      if (Math.abs(deltaY) > 35 && Math.abs(deltaY) > Math.abs(deltaX)) {
+        if (pageRef.current === 1) {
+          if (deltaY > 35) {
+            // Swipe UP -> go to Page 2 (Projects)
+            flipToPage2();
+          } else if (deltaY < -35) {
+            // Swipe DOWN / scroll UP on Page 1 -> Reopen previous page (Hero Section / Universe)!
+            scrollToHero();
+          }
         } else if (pageRef.current === 2) {
-          if (deltaY < -45) {
+          if (deltaY < -35) {
+            // Swipe DOWN / scroll UP on Page 2 -> Reopen previous page (Me Page / Page 1)!
             flipToPage1();
-          } else if (deltaY > 45) {
+          } else if (deltaY > 35) {
             flipToPage3();
           }
-        } else if (pageRef.current === 3 && deltaY < -45) {
-          flipToPage2();
+        } else if (pageRef.current === 3) {
+          if (deltaY < -35) {
+            flipToPage2();
+          }
         }
       }
     };
@@ -581,7 +620,7 @@ export default function PortfolioContent() {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [activeSpaceRealm, flipToPage1, flipToPage2, flipToPage3]);
+  }, [activeSpaceRealm, flipToPage1, flipToPage2, flipToPage3, scrollToHero]);
 
   // KEYBOARD ARROW NAVIGATION
   useEffect(() => {
@@ -610,13 +649,16 @@ export default function PortfolioContent() {
         } else if (pageRef.current === 2) {
           e.preventDefault();
           flipToPage1();
+        } else if (pageRef.current === 1) {
+          e.preventDefault();
+          scrollToHero();
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeSpaceRealm, flipToPage1, flipToPage2, flipToPage3]);
+  }, [activeSpaceRealm, flipToPage1, flipToPage2, flipToPage3, scrollToHero]);
 
   // Derived 3D rotation angles & visibility
   const flipAngle1 = flipProgress1 * 180; // 0 to 180 degrees
@@ -957,7 +999,7 @@ export default function PortfolioContent() {
               }`}
             >
               <span className="text-xs">↶</span>
-              <span>✦ Scroll Up or Click to Return to Realms</span>
+              <span>✦ Scroll Up or Click to Return to Me Page</span>
             </button>
 
             {/* MOBILE / TABLET QUOTE TICKER (Responsive, Glassmorphic, Auto-cycles, zero card collision) */}
@@ -1120,8 +1162,19 @@ export default function PortfolioContent() {
               className="absolute inset-0 bg-black/60 pointer-events-none z-10 transition-opacity"
             />
 
+            {/* Return button indicator to return to Hero Model / Universe */}
+            <button
+              onClick={scrollToHero}
+              className={`absolute top-2 sm:top-5 left-1/2 -translate-x-1/2 z-30 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-[#120e0b]/90 border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:shadow-[0_0_25px_rgba(226,176,105,0.35)] cursor-pointer flex items-center gap-2 ${
+                isPage1Active ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+              }`}
+            >
+              <span className="text-xs">↶</span>
+              <span>✦ Scroll Up or Click to Return to Universe</span>
+            </button>
+
             {/* MOBILE / TABLET LYRIC TICKER (Responsive, Glassmorphic, Auto-cycles, zero card collision) */}
-            <div className="xl:hidden w-full max-w-md sm:max-w-xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-[#120e0b]/92 border border-[#423223]/80 backdrop-blur-md shadow-[0_8px_25px_rgba(0,0,0,0.85)] z-30 flex-shrink-0 mt-2 mb-2">
+            <div className="xl:hidden w-full max-w-md sm:max-w-xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-[#120e0b]/92 border border-[#423223]/80 backdrop-blur-md shadow-[0_8px_25px_rgba(0,0,0,0.85)] z-30 flex-shrink-0 mt-8 sm:mt-10 mb-2">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#e2b069] animate-pulse flex-shrink-0" />

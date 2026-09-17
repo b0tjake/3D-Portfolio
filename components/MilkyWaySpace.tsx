@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 
 export interface SpaceMediaItem {
@@ -297,17 +297,43 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
     }
   }, [trajectoryPathD, dimensions]);
 
-  // 6. SCROLL WHEEL DIRECTLY CONTROLS THE STAR & DRAWS THE LINE (NO PAGE SCROLL)
+  // Handle Exit with smooth fade back to vaults
+  const handleExit = useCallback(() => {
+    if (exiting) return;
+    setExiting(true);
+    setTimeout(() => {
+      onExit();
+    }, 450);
+  }, [exiting, onExit]);
+
+  // 6. SCROLL WHEEL & TOUCH DIRECTLY CONTROL THE STAR & LINE
   const targetDistanceRef = useRef(0);
   const currentDistanceRef = useRef(0);
   const currentCameraYRef = useRef(0);
   const touchStartYRef = useRef(0);
+  const pullDownAccumulatorRef = useRef(0);
 
   useEffect(() => {
-    if (introPhase !== "journey") return;
+    let initialTouchY = 0;
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
+
+      // If still in intro phase:
+      if (introPhase !== "journey") {
+        if (e.deltaY < -20) {
+          handleExit();
+        } else if (e.deltaY > 20) {
+          setIntroPhase("journey");
+        }
+        return;
+      }
+
+      // Scrolling up at the top of space journey -> exit back to previous page!
+      if ((currentDistanceRef.current <= 40 || targetDistanceRef.current <= 15) && e.deltaY < -20) {
+        handleExit();
+        return;
+      }
       const step = e.deltaY * 0.85;
       targetDistanceRef.current = Math.min(
         totalPathLength,
@@ -317,15 +343,58 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
 
     const handleTouchStart = (e: TouchEvent) => {
       touchStartYRef.current = e.touches[0].clientY;
+      initialTouchY = e.touches[0].clientY;
+      pullDownAccumulatorRef.current = 0;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       const delta = touchStartYRef.current - e.touches[0].clientY;
       touchStartYRef.current = e.touches[0].clientY;
+
+      if (introPhase !== "journey") {
+        // Pulling down during intro exits back
+        if (delta < -12) {
+          pullDownAccumulatorRef.current += Math.abs(delta);
+          if (pullDownAccumulatorRef.current > 35) {
+            handleExit();
+          }
+        }
+        return;
+      }
+
+      // When at or near the beginning (delta < 0 is pulling downwards / scrolling up)
+      if ((targetDistanceRef.current <= 30 || currentDistanceRef.current <= 60) && delta < -6) {
+        pullDownAccumulatorRef.current += Math.abs(delta);
+        if (pullDownAccumulatorRef.current > 35) {
+          handleExit();
+          return;
+        }
+      } else if (delta > 0) {
+        pullDownAccumulatorRef.current = 0;
+      }
+
       targetDistanceRef.current = Math.min(
         totalPathLength,
         Math.max(0, targetDistanceRef.current + delta * 2.2)
       );
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const totalDelta = initialTouchY - e.changedTouches[0].clientY;
+
+      if (introPhase !== "journey") {
+        if (totalDelta < -35) {
+          handleExit();
+        }
+        return;
+      }
+
+      // Swiping down (scrolling up) at or near the top of space journey -> exit back to previous page!
+      if (totalDelta < -35) {
+        if (targetDistanceRef.current <= 50 || currentDistanceRef.current <= 80) {
+          handleExit();
+        }
+      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -334,22 +403,28 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
         targetDistanceRef.current = Math.min(totalPathLength, targetDistanceRef.current + 150);
       } else if (e.key === "ArrowUp" || e.key === "PageUp") {
         e.preventDefault();
-        targetDistanceRef.current = Math.max(0, targetDistanceRef.current - 150);
+        if (targetDistanceRef.current <= 35 || currentDistanceRef.current <= 50) {
+          handleExit();
+        } else {
+          targetDistanceRef.current = Math.max(0, targetDistanceRef.current - 150);
+        }
       }
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false });
     window.addEventListener("touchstart", handleTouchStart, { passive: true });
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("wheel", handleWheel);
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [introPhase, totalPathLength]);
+  }, [introPhase, totalPathLength, handleExit]);
 
   // Animation frame loop: Lock star to exact tip of line & smoothly track camera + travel speed
   useEffect(() => {
@@ -401,15 +476,6 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
     animId = requestAnimationFrame(animateStarAndCamera);
     return () => cancelAnimationFrame(animId);
   }, [introPhase, totalPathLength, waypoints, dimensions.screenH]);
-
-  // Handle Exit with smooth fade
-  const handleExit = () => {
-    if (exiting) return;
-    setExiting(true);
-    setTimeout(() => {
-      onExit();
-    }, 450);
-  };
 
   // Keyboard shortcut (Escape) to return to vaults or close video
   useEffect(() => {
@@ -666,21 +732,25 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
       {/* ========================================================================= */}
       {/* FIXED TOP HEADER (Return Button & Status)                                 */}
       {/* ========================================================================= */}
-      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-6 sm:px-10 py-5 pointer-events-none">
+      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 sm:px-10 py-3 sm:py-5 pointer-events-none">
         <div className="pointer-events-auto">
           <button
             onClick={handleExit}
-            className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#120e0b]/80 hover:bg-[#1a1410] border border-[#423223]/70 hover:border-[#e2b069] text-[#e2b069]/90 hover:text-[#e2b069] transition-all duration-300 backdrop-blur-md shadow-lg text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase cursor-pointer"
+            className="flex items-center gap-1.5 sm:gap-2.5 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#120e0b]/90 hover:bg-[#1a1410] border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] transition-all duration-300 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.8)] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase cursor-pointer active:scale-95"
           >
-            <span>←</span>
-            <span>Return To Vaults</span>
+            <span>↶</span>
+            <span>
+              {realm.id === "gaming-projects" || realm.id === "web-projects"
+                ? "Return To Projects"
+                : "Return To Me Page"}
+            </span>
           </button>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#140f0b]/80 border border-[#423223]/60 backdrop-blur-md">
-          <span className="w-2 h-2 rounded-full bg-[#e2b069] shadow-[0_0_8px_#e2b069] animate-pulse" />
-          <span className="text-[10px] font-[family-name:var(--font-serif)] tracking-[0.25em] uppercase text-[#d8c8b4]">
-            {introPhase === "journey" ? "Scroll down to travel past stars" : "Light-Speed Space Travel"}
+        <div className="flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-[#140f0b]/85 border border-[#423223]/60 backdrop-blur-md">
+          <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-[#e2b069] shadow-[0_0_8px_#e2b069] animate-pulse" />
+          <span className="text-[9px] sm:text-[10px] font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase text-[#d8c8b4]">
+            {introPhase === "journey" ? "Swipe Down to Exit • Up to Travel" : "Light-Speed Space Travel"}
           </span>
         </div>
       </header>
@@ -757,10 +827,13 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
             <span className="text-[11px] font-[family-name:var(--font-serif)] tracking-[0.3em] uppercase text-[#e2b069] font-semibold">
               {realm.title} // Cosmic Trajectory
             </span>
-            <span className="mt-1 text-[10px] tracking-[0.2em] uppercase text-[#d8c8b4]/70 flex items-center gap-1 animate-pulse">
-              <span>Scroll down to travel through stars</span>
-              <span>↓</span>
-            </span>
+            <div className="mt-1 flex flex-col items-center gap-0.5 text-[9px] sm:text-[10px] tracking-[0.18em] uppercase text-[#d8c8b4]/75">
+              <span className="text-[#e2b069] font-medium">↶ Scroll up or swipe down to exit</span>
+              <span className="flex items-center gap-1 animate-pulse text-[#d8c8b4]/60">
+                <span>Scroll down to travel through stars</span>
+                <span>↓</span>
+              </span>
+            </div>
           </div>
         )}
 
