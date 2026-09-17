@@ -227,7 +227,7 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
   }, [introPhase, dimensions.screenW]);
 
   // 5. Waypoints & S-Curve Trajectory (CENTERED ON THE PAGE!)
-  const isMobile = dimensions.screenW < 768;
+  const isCompact = dimensions.screenW < 960;
 
   // Star and Trajectory Start in the Center of the Page!
   const startWaypoint = {
@@ -235,20 +235,36 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
     y: 160,
   };
 
-  const cardSpacing = 520;
+  // Determine if this realm has extensive detailed content (like Web Projects or long descriptions)
+  const hasLongContent =
+    realm.id === "web-projects" ||
+    realm.media.some((m) => (m.description?.length || 0) > 280);
+
+  // Dynamic responsive spacing between milestones to guarantee cards never overlap or penetrate each other
+  // Web Projects has long technical descriptions + live website link buttons, requiring proper breathing room
+  const cardSpacing = isCompact
+    ? hasLongContent
+      ? 900
+      : 800
+    : hasLongContent
+    ? 820
+    : 720;
+
   const titleOffset = 180;
+  const centerLine = dimensions.screenW / 2;
+  const desktopAmplitude = Math.min(160, Math.max(70, (dimensions.screenW - 960) * 0.18 + 70));
 
   // Alternating milestones down the center axis: Right -> Left -> Right -> Left
   const waypoints: Waypoint[] = realm.media.map((_, idx) => {
     const isEven = idx % 2 === 0;
     const side: "left" | "right" = isEven ? "right" : "left";
-    const x = isEven
-      ? isMobile
-        ? dimensions.screenW * 0.76
-        : dimensions.screenW * 0.62
-      : isMobile
-      ? dimensions.screenW * 0.24
-      : dimensions.screenW * 0.38;
+    const x = isCompact
+      ? isEven
+        ? centerLine + 25
+        : centerLine - 25
+      : isEven
+      ? centerLine + desktopAmplitude
+      : centerLine - desktopAmplitude;
     const y = titleOffset + idx * cardSpacing + 300;
 
     return { x, y, side, mediaIndex: idx };
@@ -883,23 +899,30 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
                 }`}
                 style={{
                   top: "0px",
-                  left: isMobile
-                    ? `${dimensions.screenW * 0.06}px`
+                  left: isCompact
+                    ? "50%"
                     : isRightSide
                     ? `${wp.x + 36}px`
                     : "auto",
-                  right: isMobile
+                  right: isCompact
                     ? "auto"
                     : !isRightSide
                     ? `${dimensions.screenW - wp.x + 36}px`
                     : "auto",
-                  transform: isMobile ? "translateY(24px)" : "translateY(-50%)",
-                  width: isMobile ? `${dimensions.screenW * 0.88}px` : "auto",
-                  maxWidth: dimensions.screenW > 1000 ? "460px" : "380px",
+                  transform: isCompact ? "translate(-50%, 28px)" : "translateY(-50%)",
+                  width: isCompact ? "90%" : "auto",
+                  maxWidth: isCompact
+                    ? "480px"
+                    : `${Math.min(
+                        dimensions.screenW >= 1200 ? 460 : 380,
+                        isRightSide
+                          ? dimensions.screenW - wp.x - 36 - 24
+                          : wp.x - 36 - 24
+                      )}px`,
                 }}
               >
                 {/* Horizontal Connector Beam on Desktop */}
-                {!isMobile && (
+                {!isCompact && (
                   <div
                     className={`absolute top-1/2 w-8 h-[2px] bg-gradient-to-r from-[#e2b069] to-transparent shadow-[0_0_8px_#e2b069] ${
                       isRightSide
@@ -924,7 +947,7 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
                   {/* Image / Video Preview from Folder (Videos can be opened) */}
                   <div
                     onClick={item.isVideo ? () => setOpenedVideo(item) : undefined}
-                    className={`relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-[#3b2c1f] group-hover:border-[#e2b069] transition-all duration-300 mb-3 bg-black/60 select-none ${
+                    className={`relative w-full aspect-[16/9] rounded-xl overflow-hidden border border-[#3b2c1f] group-hover:border-[#e2b069] transition-all duration-300 mb-3 bg-black/60 select-none ${
                       item.isVideo ? "cursor-pointer pointer-events-auto group/video" : "pointer-events-none"
                     }`}
                   >
@@ -998,7 +1021,7 @@ export default function MilkyWaySpace({ realm, originRect, onExit }: MilkyWaySpa
                   </h3>
 
                   {/* Place of Description */}
-                  <p className="mt-2.5 text-[13px] sm:text-sm text-[#e8ded1] font-sans font-normal leading-[1.65] tracking-[0.01em]">
+                  <p className="mt-2 text-[12.5px] sm:text-sm text-[#e8ded1] font-sans font-normal leading-[1.6] tracking-[0.01em]">
                     {item.description || realm.description}
                   </p>
 

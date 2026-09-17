@@ -4,6 +4,69 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import MilkyWaySpace, { SpaceRealmInfo, OriginRect } from "./MilkyWaySpace";
 import gsap from "gsap";
 
+// Responsive Quotes & Lyrics Data
+export const LYRICS = [
+  {
+    quote: "Plutôt qu'être seul, mieux vaut être mal accompagné",
+    author: "Stromae",
+    work: "Ma Meilleure Ennemie",
+    rotation: "rotate-[2.5deg] hover:rotate-[0.5deg]",
+    position: "top-4 sm:top-6 md:top-8 left-4 sm:left-6 md:left-8 2xl:top-10 2xl:left-12",
+  },
+  {
+    quote: "Breakin' our backs for a pile of sand, just to have it all fallin' out of our hands. Maybe it all gets lost in the end.",
+    author: "Linkin Park",
+    work: "Let You Fade",
+    rotation: "-rotate-[2.5deg] hover:-rotate-[0.5deg]",
+    position: "top-4 sm:top-6 md:top-8 right-4 sm:right-6 md:right-8 2xl:top-10 2xl:right-12 text-right",
+  },
+  {
+    quote: "And if you go, I wanna go with you\nAnd if you die, I wanna die with you\nTake your hand and walk away",
+    author: "System of a Down",
+    work: "Lonely Day",
+    rotation: "-rotate-[2.5deg] hover:-rotate-[0.5deg]",
+    position: "bottom-14 sm:bottom-12 md:bottom-8 left-4 sm:left-6 md:left-8 2xl:bottom-10 2xl:left-12",
+  },
+  {
+    quote: "Ma3lich la mchiti f chouk\nGhdwa tri9 iwelli zine\nTanta tfere7 wjeh l mima l7zine",
+    author: "Stormy",
+    work: "Si Tu Savais",
+    rotation: "rotate-[2.5deg] hover:rotate-[0.5deg]",
+    position: "bottom-14 sm:bottom-12 md:bottom-8 right-4 sm:right-6 md:right-8 2xl:bottom-10 2xl:right-12 text-right",
+  },
+];
+
+export const QUOTES = [
+  {
+    quote: "Hope is what makes us strong. It is why we are here. It is what we fight with when all else is lost.",
+    author: "Pandora",
+    work: "God of War III",
+    rotation: "rotate-[2.5deg] hover:rotate-[0.5deg]",
+    position: "top-4 sm:top-6 md:top-8 left-4 sm:left-6 md:left-8 2xl:top-10 2xl:left-12",
+  },
+  {
+    quote: "Some trees flourish, others die. Ain't nothing fair, you know that.",
+    author: "Arthur Morgan",
+    work: "Red Dead Redemption 2",
+    rotation: "-rotate-[2.5deg] hover:-rotate-[0.5deg]",
+    position: "top-4 sm:top-6 md:top-8 right-4 sm:right-6 md:right-8 2xl:top-10 2xl:right-12 text-right",
+  },
+  {
+    quote: "Not all of us can change the world. Some of us can only change ourselves.",
+    author: "Expedition 33",
+    work: "Expedition 33",
+    rotation: "-rotate-[2.5deg] hover:-rotate-[0.5deg]",
+    position: "bottom-14 sm:bottom-12 md:bottom-8 left-4 sm:left-6 md:left-8 2xl:bottom-10 2xl:left-12",
+  },
+  {
+    quote: "To love or have loved, that is enough. Ask nothing further. There is no other pearl to be found in the dark folds of life.",
+    author: "Victor Hugo",
+    work: "Les Misérables",
+    rotation: "rotate-[2.5deg] hover:rotate-[0.5deg]",
+    position: "bottom-14 sm:bottom-12 md:bottom-8 right-4 sm:right-6 md:right-8 2xl:bottom-10 2xl:right-12 text-right",
+  },
+];
+
 export default function PortfolioContent() {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -16,6 +79,24 @@ export default function PortfolioContent() {
   const animProgress2 = useRef({ value: 0 });
   const pageRef = useRef<1 | 2 | 3>(1);
   pageRef.current = page;
+
+  // Active lyric & quote index for mobile / tablet carousel ticker
+  const [activeLyricIndex, setActiveLyricIndex] = useState(0);
+  const [activeQuoteIndex, setActiveQuoteIndex] = useState(0);
+
+  // Auto-cycle lyrics & quotes every 6 seconds on mobile/tablet
+  useEffect(() => {
+    const lyricTimer = setInterval(() => {
+      setActiveLyricIndex((prev) => (prev + 1) % LYRICS.length);
+    }, 6000);
+    const quoteTimer = setInterval(() => {
+      setActiveQuoteIndex((prev) => (prev + 1) % QUOTES.length);
+    }, 6000);
+    return () => {
+      clearInterval(lyricTimer);
+      clearInterval(quoteTimer);
+    };
+  }, []);
 
   // 1-Click Copy Email state
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -457,17 +538,15 @@ export default function PortfolioContent() {
   // TOUCH SWIPE GESTURES FOR MOBILE / TABLETS
   useEffect(() => {
     let touchStartY = 0;
+    let touchStartX = 0;
 
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY = e.touches[0].clientY;
+      touchStartX = e.touches[0].clientX;
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (activeSpaceRealm) return;
-      if (isFlippingRef.current) {
-        e.preventDefault();
-        return;
-      }
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (activeSpaceRealm || isFlippingRef.current) return;
 
       const innerRealm = document.getElementById("inner-realm");
       if (innerRealm) {
@@ -475,31 +554,32 @@ export default function PortfolioContent() {
         if (rect.top > 120) return;
       }
 
-      const touchEndY = e.touches[0].clientY;
+      const touchEndY = e.changedTouches[0].clientY;
+      const touchEndX = e.changedTouches[0].clientX;
       const deltaY = touchStartY - touchEndY;
+      const deltaX = touchStartX - touchEndX;
 
-      if (pageRef.current === 1 && deltaY > 35) {
-        e.preventDefault();
-        flipToPage2();
-      } else if (pageRef.current === 2) {
-        if (deltaY < -35) {
-          e.preventDefault();
-          flipToPage1();
-        } else if (deltaY > 35) {
-          e.preventDefault();
-          flipToPage3();
+      // Ensure vertical gesture with intentional distance (> 45px) and predominantly vertical
+      if (Math.abs(deltaY) > 45 && Math.abs(deltaY) > Math.abs(deltaX) * 1.3) {
+        if (pageRef.current === 1 && deltaY > 45) {
+          flipToPage2();
+        } else if (pageRef.current === 2) {
+          if (deltaY < -45) {
+            flipToPage1();
+          } else if (deltaY > 45) {
+            flipToPage3();
+          }
+        } else if (pageRef.current === 3 && deltaY < -45) {
+          flipToPage2();
         }
-      } else if (pageRef.current === 3 && deltaY < -35) {
-        e.preventDefault();
-        flipToPage2();
       }
     };
 
     window.addEventListener("touchstart", handleTouchStart, { passive: true });
-    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
     return () => {
       window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
     };
   }, [activeSpaceRealm, flipToPage1, flipToPage2, flipToPage3]);
 
@@ -595,7 +675,7 @@ export default function PortfolioContent() {
             transformStyle: "preserve-3d",
             zIndex: 10,
           }}
-          className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center px-4 sm:px-10 md:px-16 lg:px-24 py-12 sm:py-16 md:py-20 ${
+          className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center px-3 sm:px-8 md:px-14 lg:px-20 py-8 sm:py-12 md:py-16 ${
             isPage3Active ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >
@@ -608,41 +688,41 @@ export default function PortfolioContent() {
           />
 
           {/* PAGE 3 - CORNER 1: TOP-LEFT HIGHLIGHT (Philosophy) */}
-          <div className="absolute top-5 sm:top-8 md:top-10 left-5 sm:left-8 md:left-12 max-w-[260px] sm:max-w-[290px] md:max-w-[320px] p-3.5 sm:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 group transform rotate-[3.5deg] hover:rotate-[1deg]">
-            <p className="text-xs sm:text-sm md:text-[15px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
+          <div className="absolute top-4 sm:top-6 left-4 sm:left-6 2xl:top-8 2xl:left-10 max-w-[210px] xl:max-w-[240px] 2xl:max-w-[300px] p-3 2xl:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 group transform rotate-[2.5deg] hover:rotate-[0.5deg] hidden xl:block">
+            <p className="text-xs 2xl:text-sm text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
               &ldquo;Crafting interactive worlds, robust web architectures &amp; immersive game simulations with precision.&rdquo;
             </p>
-            <span className="block mt-2 text-[10px] sm:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
+            <span className="block mt-2 text-[10px] 2xl:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
               Zouhair Trafeh • Vision
             </span>
           </div>
 
           {/* PAGE 3 - CORNER 2: TOP-RIGHT HIGHLIGHT (Core Stack) */}
-          <div className="absolute top-5 sm:top-8 md:top-10 right-5 sm:right-8 md:right-12 max-w-[260px] sm:max-w-[290px] md:max-w-[320px] p-3.5 sm:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 text-right group transform -rotate-[3.5deg] hover:-rotate-[1deg]">
-            <p className="text-xs sm:text-sm md:text-[15px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
+          <div className="absolute top-4 sm:top-6 right-4 sm:right-6 2xl:top-8 2xl:right-10 max-w-[210px] xl:max-w-[240px] 2xl:max-w-[300px] p-3 2xl:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 text-right group transform -rotate-[2.5deg] hover:-rotate-[0.5deg] hidden xl:block">
+            <p className="text-xs 2xl:text-sm text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
               &ldquo;Unity • C# • React.js • Next.js • Node.js • TypeScript • Tailwind CSS • GSAP&rdquo;
             </p>
-            <span className="block mt-2 text-[10px] sm:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
+            <span className="block mt-2 text-[10px] 2xl:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
               Core Technical Stack
             </span>
           </div>
 
           {/* PAGE 3 - CORNER 3: BOTTOM-LEFT HIGHLIGHT (Formation & Bootcamps) */}
-          <div className="absolute bottom-5 sm:bottom-8 md:bottom-10 left-5 sm:left-8 md:left-12 max-w-[260px] sm:max-w-[290px] md:max-w-[320px] p-3.5 sm:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 group transform -rotate-[3.5deg] hover:-rotate-[1deg]">
-            <p className="text-xs sm:text-sm md:text-[15px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
+          <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 2xl:bottom-8 2xl:left-10 max-w-[210px] xl:max-w-[240px] 2xl:max-w-[300px] p-3 2xl:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 group transform -rotate-[2.5deg] hover:-rotate-[0.5deg] hidden xl:block">
+            <p className="text-xs 2xl:text-sm text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
               &ldquo;Game Development &amp; Design (Geeks Institute) • Digital Development Diploma (CMFP)&rdquo;
             </p>
-            <span className="block mt-2 text-[10px] sm:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
+            <span className="block mt-2 text-[10px] 2xl:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
               Education &amp; Credentials
             </span>
           </div>
 
           {/* PAGE 3 - CORNER 4: BOTTOM-RIGHT HIGHLIGHT (Location & Readiness) */}
-          <div className="absolute bottom-5 sm:bottom-8 md:bottom-10 right-5 sm:right-8 md:right-12 max-w-[260px] sm:max-w-[290px] md:max-w-[320px] p-3.5 sm:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 text-right group transform rotate-[3.5deg] hover:rotate-[1deg]">
-            <p className="text-xs sm:text-sm md:text-[15px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
+          <div className="absolute bottom-4 sm:bottom-6 right-4 sm:right-6 2xl:bottom-8 2xl:right-10 max-w-[210px] xl:max-w-[240px] 2xl:max-w-[300px] p-3 2xl:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 text-right group transform rotate-[2.5deg] hover:rotate-[0.5deg] hidden xl:block">
+            <p className="text-xs 2xl:text-sm text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
               &ldquo;Based in Casablanca, Morocco. Ready for innovative game studios and full-stack teams.&rdquo;
             </p>
-            <span className="block mt-2 text-[10px] sm:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
+            <span className="block mt-2 text-[10px] 2xl:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
               Worldwide Availability
             </span>
           </div>
@@ -650,7 +730,7 @@ export default function PortfolioContent() {
           {/* Return button to Page 2 (Projects) */}
           <button
             onClick={flipToPage2}
-            className={`absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-30 px-5 py-2 rounded-full bg-[#120e0b]/90 border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:shadow-[0_0_25px_rgba(226,176,105,0.35)] cursor-pointer flex items-center gap-2 ${
+            className={`absolute top-2 sm:top-5 left-1/2 -translate-x-1/2 z-30 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-[#120e0b]/90 border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:shadow-[0_0_25px_rgba(226,176,105,0.35)] cursor-pointer flex items-center gap-2 ${
               isPage3Active ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
             }`}
           >
@@ -659,7 +739,7 @@ export default function PortfolioContent() {
           </button>
 
           {/* MAIN GET IN TOUCH CENTER STAGE */}
-          <div className="relative z-20 max-w-4xl w-full flex flex-col items-center text-center p-6 sm:p-8 md:p-10 rounded-3xl bg-[#0e0a07]/90 border border-[#423223]/80 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.95)]">
+          <div className="relative z-20 max-w-4xl w-full flex flex-col items-center text-center p-4 sm:p-7 md:p-9 rounded-3xl bg-[#0e0a07]/92 border border-[#423223]/80 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] max-h-[85vh] overflow-y-auto">
             {/* Top Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-[#1e1710]/90 border border-[#e2b069]/40 mb-3 shadow-[0_0_15px_rgba(226,176,105,0.2)]">
               <span className="text-[10px] sm:text-xs text-[#e2b069] font-[family-name:var(--font-serif)] tracking-[0.25em] uppercase font-bold">
@@ -851,7 +931,7 @@ export default function PortfolioContent() {
                 ? "transform 0.32s cubic-bezier(0.55, 0.05, 0.67, 0.19), filter 0.25s ease, opacity 0.25s ease"
                 : "transform 0.45s ease, filter 0.45s ease, opacity 0.45s ease",
             }}
-            className="absolute inset-0 w-full h-full bg-[#080605] flex items-center justify-center px-4 sm:px-12 md:px-20 lg:px-28 py-16 sm:py-20 md:py-24 border-b border-[#e2b069]/20"
+            className="absolute inset-0 w-full h-full bg-[#080605] flex flex-col items-center justify-between xl:justify-center px-3 sm:px-6 md:px-10 lg:px-16 xl:px-20 py-3 sm:py-5 md:py-7 lg:py-8 border-b border-[#e2b069]/20 overflow-hidden"
           >
             {/* Casting Shadow from Page 1 over Page 2 that lightens as page 1 turns up */}
             <div
@@ -869,48 +949,64 @@ export default function PortfolioContent() {
               className="absolute inset-0 bg-black/60 pointer-events-none z-10 transition-opacity"
             />
 
-            {/* PAGE 2 - CORNER 1: TOP-LEFT QUOTE (Pandora – God of War III) */}
-            <div className="absolute top-5 sm:top-8 md:top-10 left-5 sm:left-8 md:left-12 max-w-[260px] sm:max-w-[300px] md:max-w-[340px] p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 group transform rotate-[4.5deg] hover:rotate-[1.5deg]">
-              <p className="text-sm sm:text-base md:text-[20px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
-                &ldquo;Hope is what makes us strong. It is why we are here. It is what we fight with when all else is lost.&rdquo;
+            {/* Return button indicator to return to Page 1 */}
+            <button
+              onClick={flipToPage1}
+              className={`absolute top-2 sm:top-5 left-1/2 -translate-x-1/2 z-30 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-[#120e0b]/90 border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:shadow-[0_0_25px_rgba(226,176,105,0.35)] cursor-pointer flex items-center gap-2 ${
+                isPage2Active ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+              }`}
+            >
+              <span className="text-xs">↶</span>
+              <span>✦ Scroll Up or Click to Return to Realms</span>
+            </button>
+
+            {/* MOBILE / TABLET QUOTE TICKER (Responsive, Glassmorphic, Auto-cycles, zero card collision) */}
+            <div className="xl:hidden w-full max-w-md sm:max-w-xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-[#120e0b]/92 border border-[#423223]/80 backdrop-blur-md shadow-[0_8px_25px_rgba(0,0,0,0.85)] z-30 flex-shrink-0 mt-8 sm:mt-10 mb-2">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#e2b069] animate-pulse flex-shrink-0" />
+                  <span className="text-[10px] sm:text-[11px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232] truncate">
+                    {QUOTES[activeQuoteIndex].author} • {QUOTES[activeQuoteIndex].work}
+                  </span>
+                </div>
+                {/* 4 Interactive Dot Indicators */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {QUOTES.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveQuoteIndex(i)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        activeQuoteIndex === i
+                          ? "w-4 bg-[#e2b069] shadow-[0_0_8px_rgba(226,176,105,0.7)]"
+                          : "w-1.5 bg-[#382a1d] hover:bg-[#8c7b6b]"
+                      }`}
+                      aria-label={`Go to quote ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs sm:text-[13px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-snug line-clamp-2">
+                &ldquo;{QUOTES[activeQuoteIndex].quote.replace(/\n/g, " • ")}&rdquo;
               </p>
-              <span className="block mt-2.5 sm:mt-3 text-xs sm:text-[13px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
-                Pandora • God of War III
-              </span>
             </div>
 
-            {/* PAGE 2 - CORNER 2: TOP-RIGHT QUOTE (Arthur Morgan -- Red Dead Redemption 2) */}
-            <div className="absolute top-5 sm:top-8 md:top-10 right-5 sm:right-8 md:right-12 max-w-[260px] sm:max-w-[300px] md:max-w-[340px] p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 text-right group transform -rotate-[4.5deg] hover:-rotate-[1.5deg]">
-              <p className="text-sm sm:text-base md:text-[20px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
-                &ldquo;Some trees flourish, others die. Ain&apos;t nothing fair, you know that.&rdquo;
-              </p>
-              <span className="block mt-2.5 sm:mt-3 text-xs sm:text-[13px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
-                Arthur Morgan • Red Dead Redemption 2
-              </span>
-            </div>
-
-            {/* PAGE 2 - CORNER 3: BOTTOM-LEFT QUOTE (Expedition 33) */}
-            <div className="absolute bottom-5 sm:bottom-8 md:bottom-10 left-5 sm:left-8 md:left-12 max-w-[260px] sm:max-w-[300px] md:max-w-[340px] p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 group transform -rotate-[4.5deg] hover:-rotate-[1.5deg]">
-              <p className="text-sm sm:text-base md:text-[20px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed whitespace-pre-line">
-                &ldquo;Not all of us can change the world. Some of us can only change ourselves.&rdquo;
-              </p>
-              <span className="block mt-2.5 sm:mt-3 text-xs sm:text-[13px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
-                Expedition 33
-              </span>
-            </div>
-
-            {/* PAGE 2 - CORNER 4: BOTTOM-RIGHT QUOTE (Les Misérables - Victor Hugo) */}
-            <div className="absolute bottom-5 sm:bottom-8 md:bottom-10 right-5 sm:right-8 md:right-12 max-w-[260px] sm:max-w-[300px] md:max-w-[340px] p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 text-right group transform rotate-[4.5deg] hover:rotate-[1.5deg]">
-              <p className="text-sm sm:text-base md:text-[20px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed whitespace-pre-line">
-                &ldquo;To love or have loved, that is enough. Ask nothing further. There is no other pearl to be found in the dark folds of life.&rdquo;
-              </p>
-              <span className="block mt-2.5 sm:mt-3 text-xs sm:text-[13px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
-                Victor Hugo • Les Misérables
-              </span>
-            </div>
+            {/* PAGE 2 - 4 DESKTOP CORNER QUOTES (hidden on mobile/tablet, shown on xl+) */}
+            {QUOTES.map((item, index) => (
+              <div
+                key={index}
+                className={`absolute ${item.position} max-w-[210px] xl:max-w-[240px] 2xl:max-w-[300px] p-3 xl:p-3.5 2xl:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-10 group transform ${item.rotation} hidden xl:block`}
+              >
+                <p className="text-xs 2xl:text-sm text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed whitespace-pre-line">
+                  &ldquo;{item.quote}&rdquo;
+                </p>
+                <span className="block mt-2 text-[10px] 2xl:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
+                  {item.author} • {item.work}
+                </span>
+              </div>
+            ))}
 
             {/* PAGE 2 - 2 IMAGES IN CENTER: 9:16 DEFAULT -> 10:16 ON HOVER (CLICK TO DIVE INTO SPACE!) */}
-            <div className="relative z-20 flex flex-row items-center justify-center gap-6 sm:gap-8 md:gap-12 w-full max-w-4xl mx-auto h-[44vh] sm:h-[50vh] md:h-[56vh] max-h-[540px] overflow-x-auto sm:overflow-visible">
+            <div className="relative z-20 flex flex-row items-center justify-center gap-3 sm:gap-6 md:gap-10 w-full max-w-4xl mx-auto h-[38vh] sm:h-[42vh] md:h-[46vh] lg:h-[50vh] max-h-[480px] my-auto">
               {projects.map((project, index) => {
                 const isHovered = hoveredProjectIndex === index;
                 return (
@@ -924,7 +1020,7 @@ export default function PortfolioContent() {
                       transition:
                         "aspect-ratio 0.45s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.3s ease, box-shadow 0.3s ease",
                     }}
-                    className={`relative group/card h-full w-auto max-w-full rounded-2xl overflow-hidden cursor-pointer border shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex-shrink-0 ${
+                    className={`relative group/card h-full w-auto max-w-[48%] sm:max-w-full rounded-2xl overflow-hidden cursor-pointer border shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex-shrink-0 ${
                       isHovered
                         ? "border-[#e2b069] shadow-[0_0_35px_rgba(226,176,105,0.45)] z-30"
                         : "border-[#382a1d]/80 z-20"
@@ -937,16 +1033,16 @@ export default function PortfolioContent() {
                       className="w-full h-full object-cover object-center pointer-events-none"
                     />
 
-                    {/* HOVER EXPLANATORY TEXT OVERLAY (Just the same way as Page 1) */}
-                    <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-4 md:p-5 flex flex-col justify-end bg-gradient-to-t from-[#080605] via-[#080605]/85 to-transparent z-10 pointer-events-none opacity-0 group-hover/card:opacity-100 transition-all duration-300 transform translate-y-2 group-hover/card:translate-y-0 select-none">
-                      <span className="text-[11px] sm:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.2em] uppercase text-[#e2b069] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                    {/* TEXT OVERLAY: Visible by default on mobile touch; revealed on hover on desktop */}
+                    <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-4 md:p-5 flex flex-col justify-end bg-gradient-to-t from-[#080605] via-[#080605]/85 to-transparent z-10 pointer-events-none opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 transition-all duration-300 sm:transform sm:translate-y-2 sm:group-hover/card:translate-y-0 select-none">
+                      <span className="text-[10px] sm:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] sm:tracking-[0.2em] uppercase text-[#e2b069] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] truncate">
                         {project.id === "gaming-projects" ? "Video Games Projects" : "Web Projects"}
                       </span>
-                      <p className="mt-1 text-xs sm:text-[13px] text-[#f4efe8] font-sans font-normal leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
+                      <p className="mt-0.5 sm:mt-1 text-[9.5px] sm:text-[13px] text-[#f4efe8] font-sans font-normal leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] hidden xs:block sm:block line-clamp-2">
                         {project.explanation}
                       </p>
-                      <span className="mt-2 text-[9px] font-[family-name:var(--font-serif)] tracking-[0.15em] uppercase text-[#e2b069] flex items-center gap-1 font-semibold drop-shadow-[0_0_6px_rgba(226,176,105,0.6)]">
-                        <span>✦ Click to dive inside</span>
+                      <span className="mt-1 sm:mt-2 text-[8.5px] sm:text-[9px] font-[family-name:var(--font-serif)] tracking-[0.15em] uppercase text-[#e2b069] flex items-center gap-1 font-semibold drop-shadow-[0_0_6px_rgba(226,176,105,0.6)]">
+                        <span>✦ Tap to dive inside</span>
                         <span>↗</span>
                       </span>
                     </div>
@@ -955,21 +1051,10 @@ export default function PortfolioContent() {
               })}
             </div>
 
-            {/* Return button indicator to return to Page 1 */}
-            <button
-              onClick={flipToPage1}
-              className={`absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-30 px-5 py-2 rounded-full bg-[#120e0b]/90 border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:shadow-[0_0_25px_rgba(226,176,105,0.35)] cursor-pointer flex items-center gap-2 ${
-                isPage2Active ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
-              }`}
-            >
-              <span className="text-xs">↶</span>
-              <span>✦ Scroll Up or Click to Return to Realms</span>
-            </button>
-
             {/* Forward button to Page 3 (Get in touch) */}
             <button
               onClick={flipToPage3}
-              className={`absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 px-5 py-2 rounded-full bg-[#120e0b]/90 border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:shadow-[0_0_25px_rgba(226,176,105,0.35)] cursor-pointer flex items-center gap-2 ${
+              className={`absolute bottom-2 sm:bottom-5 left-1/2 -translate-x-1/2 z-30 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-[#120e0b]/90 border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:shadow-[0_0_25px_rgba(226,176,105,0.35)] cursor-pointer flex items-center gap-2 ${
                 isPage2Active ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
               }`}
             >
@@ -1025,7 +1110,7 @@ export default function PortfolioContent() {
                 ? "transform 0.32s cubic-bezier(0.55, 0.05, 0.67, 0.19), filter 0.25s ease, opacity 0.25s ease"
                 : "transform 0.45s ease, filter 0.45s ease, opacity 0.45s ease",
             }}
-            className="absolute inset-0 w-full h-full bg-[#080605] flex items-center justify-center px-4 sm:px-12 md:px-20 lg:px-28 py-16 sm:py-20 md:py-24 border-b border-[#e2b069]/20"
+            className="absolute inset-0 w-full h-full bg-[#080605] flex flex-col items-center justify-between xl:justify-center px-3 sm:px-6 md:px-10 lg:px-16 xl:px-20 py-3 sm:py-5 md:py-7 lg:py-8 border-b border-[#e2b069]/20 overflow-hidden"
           >
             {/* Shading overlay that darkens Page 1 as it lifts up */}
             <div
@@ -1035,48 +1120,80 @@ export default function PortfolioContent() {
               className="absolute inset-0 bg-black/60 pointer-events-none z-10 transition-opacity"
             />
 
-            {/* PAGE 1 - CORNER 1: TOP-LEFT QUOTE (Stromae) */}
-            <div className="absolute top-5 sm:top-8 md:top-10 left-5 sm:left-8 md:left-12 max-w-[260px] sm:max-w-[300px] md:max-w-[340px] p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 group transform rotate-[4.5deg] hover:rotate-[1.5deg]">
-              <p className="text-sm sm:text-base md:text-[20px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
-                &ldquo;Plutôt qu&apos;être seul, mieux vaut être mal accompagné&rdquo;
+            {/* MOBILE / TABLET LYRIC TICKER (Responsive, Glassmorphic, Auto-cycles, zero card collision) */}
+            <div className="xl:hidden w-full max-w-md sm:max-w-xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-[#120e0b]/92 border border-[#423223]/80 backdrop-blur-md shadow-[0_8px_25px_rgba(0,0,0,0.85)] z-30 flex-shrink-0 mt-2 mb-2">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#e2b069] animate-pulse flex-shrink-0" />
+                  <span className="text-[10px] sm:text-[11px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232] truncate">
+                    {LYRICS[activeLyricIndex].author} • {LYRICS[activeLyricIndex].work}
+                  </span>
+                </div>
+                {/* 4 Interactive Dot Indicators */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {LYRICS.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveLyricIndex(i)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        activeLyricIndex === i
+                          ? "w-4 bg-[#e2b069] shadow-[0_0_8px_rgba(226,176,105,0.7)]"
+                          : "w-1.5 bg-[#382a1d] hover:bg-[#8c7b6b]"
+                      }`}
+                      aria-label={`Go to lyric ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs sm:text-[13px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-snug line-clamp-2">
+                &ldquo;{LYRICS[activeLyricIndex].quote.replace(/\n/g, " • ")}&rdquo;
               </p>
-              <span className="block mt-2.5 sm:mt-3 text-xs sm:text-[13px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
-                Stromae • Ma Meilleure Ennemie
-              </span>
             </div>
 
-            {/* PAGE 1 - CORNER 2: TOP-RIGHT QUOTE (Linkin Park) */}
-            <div className="absolute top-5 sm:top-8 md:top-10 right-5 sm:right-8 md:right-12 max-w-[260px] sm:max-w-[300px] md:max-w-[340px] p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 text-right group transform -rotate-[4.5deg] hover:-rotate-[1.5deg]">
-              <p className="text-sm sm:text-base md:text-[20px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed">
-                &ldquo;Breakin&apos; our backs for a pile of sand, just to have it all fallin&apos; out of our hands. Maybe it all gets lost in the end.&rdquo;
-              </p>
-              <span className="block mt-2.5 sm:mt-3 text-xs sm:text-[13px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
-                Linkin Park • Let You Fade
-              </span>
+            {/* PAGE 1 - 4 DESKTOP CORNER LYRICS (hidden on mobile/tablet, shown on xl+) */}
+            {LYRICS.map((item, index) => (
+              <div
+                key={index}
+                className={`absolute ${item.position} max-w-[210px] xl:max-w-[240px] 2xl:max-w-[300px] p-3 xl:p-3.5 2xl:p-4 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-10 group transform ${item.rotation} hidden xl:block`}
+              >
+                <p className="text-xs 2xl:text-sm text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed whitespace-pre-line">
+                  &ldquo;{item.quote}&rdquo;
+                </p>
+                <span className="block mt-2 text-[10px] 2xl:text-xs font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
+                  {item.author} • {item.work}
+                </span>
+              </div>
+            ))}
+
+            {/* PAGE 1 - MOBILE 2x2 CARDS GRID (< sm) */}
+            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[310px] mx-auto sm:hidden my-auto z-20">
+              {realms.map((realm) => (
+                <div
+                  key={realm.id}
+                  onClick={(e) => handleCardClick(realm, e)}
+                  className="relative group rounded-xl overflow-hidden cursor-pointer border border-[#382a1d]/80 active:border-[#e2b069] active:scale-[0.98] shadow-[0_8px_24px_rgba(0,0,0,0.85)] aspect-[9/13] transition-all"
+                >
+                  <img
+                    src={realm.cover}
+                    alt={realm.title}
+                    className="w-full h-full object-cover object-center pointer-events-none"
+                  />
+                  {/* Permanent mobile badge */}
+                  <div className="absolute inset-x-0 bottom-0 p-2 sm:p-2.5 flex flex-col justify-end bg-gradient-to-t from-[#080605] via-[#080605]/85 to-transparent z-10 select-none">
+                    <span className="text-[11px] font-[family-name:var(--font-serif)] font-bold tracking-wider uppercase text-[#e2b069] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] truncate">
+                      {realm.title}
+                    </span>
+                    <span className="mt-0.5 text-[8.5px] font-[family-name:var(--font-serif)] tracking-wider uppercase text-[#cf8e32] flex items-center gap-1 font-semibold">
+                      <span>✦ Enter Vault</span>
+                      <span>↗</span>
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* PAGE 1 - CORNER 3: BOTTOM-LEFT QUOTE (System of a Down) */}
-            <div className="absolute bottom-5 sm:bottom-8 md:bottom-10 left-5 sm:left-8 md:left-12 max-w-[260px] sm:max-w-[300px] md:max-w-[340px] p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 group transform -rotate-[4.5deg] hover:-rotate-[1.5deg]">
-              <p className="text-sm sm:text-base md:text-[20px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed whitespace-pre-line">
-                &ldquo;And if you go, I wanna go with you&#10;And if you die, I wanna die with you&#10;Take your hand and walk away&rdquo;
-              </p>
-              <span className="block mt-2.5 sm:mt-3 text-xs sm:text-[13px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
-                System of a Down • Lonely Day
-              </span>
-            </div>
-
-            {/* PAGE 1 - CORNER 4: BOTTOM-RIGHT QUOTE (Stormy) */}
-            <div className="absolute bottom-5 sm:bottom-8 md:bottom-10 right-5 sm:right-8 md:right-12 max-w-[260px] sm:max-w-[300px] md:max-w-[340px] p-3.5 sm:p-4 md:p-5 rounded-2xl bg-[#120e0b]/90 border border-[#423223]/80 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:border-[#cf9232]/80 transition-all duration-300 z-0 text-right group transform rotate-[4.5deg] hover:rotate-[1.5deg]">
-              <p className="text-sm sm:text-base md:text-[20px] text-[#f4efe8] font-[family-name:var(--font-manuscript)] italic leading-relaxed whitespace-pre-line">
-                &ldquo;Ma3lich la mchiti f chouk&#10;Ghdwa tri9 iwelli zine&#10;Tanta tfere7 wjeh l mima l7zine&rdquo;
-              </p>
-              <span className="block mt-2.5 sm:mt-3 text-xs sm:text-[13px] font-[family-name:var(--font-serif)] font-bold tracking-[0.16em] uppercase text-[#cf7232]">
-                Stormy • Si Tu Savais
-              </span>
-            </div>
-
-            {/* PAGE 1 - 4 IMAGES IN CENTER: 9:16 DEFAULT -> 10:16 ON HOVER */}
-            <div className="relative z-20 flex flex-row items-center justify-center gap-3 sm:gap-4 md:gap-5 w-full max-w-5xl mx-auto h-[44vh] sm:h-[50vh] md:h-[56vh] max-h-[540px] overflow-x-auto sm:overflow-visible">
+            {/* PAGE 1 - TABLET & DESKTOP ROW (>= sm) */}
+            <div className="hidden sm:flex relative z-20 flex-row items-center justify-center gap-2.5 md:gap-4 lg:gap-5 w-full max-w-5xl mx-auto h-[38vh] sm:h-[42vh] md:h-[46vh] lg:h-[50vh] max-h-[480px] my-auto">
               {realms.map((realm, index) => {
                 const isHovered = hoveredIndex === index;
                 return (
@@ -1124,7 +1241,7 @@ export default function PortfolioContent() {
             {/* Turn Page Button Indicator */}
             <button
               onClick={flipToPage2}
-              className={`absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 px-5 py-2 rounded-full bg-[#120e0b]/90 border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:shadow-[0_0_25px_rgba(226,176,105,0.35)] cursor-pointer flex items-center gap-2 ${
+              className={`absolute bottom-2 sm:bottom-5 left-1/2 -translate-x-1/2 z-30 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-[#120e0b]/90 border border-[#e2b069]/40 hover:border-[#e2b069] text-[#e2b069] hover:text-[#f4efe8] text-[10px] sm:text-xs font-[family-name:var(--font-serif)] tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.8)] hover:shadow-[0_0_25px_rgba(226,176,105,0.35)] cursor-pointer flex items-center gap-2 ${
                 isPage1Active ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
               }`}
             >
